@@ -1,0 +1,43 @@
+server {
+    listen 80;
+    server_name movie-playlist;
+    charset utf-8;
+    root /var/www/app/;
+
+    index index.html;
+
+    location ~ /.well-known {
+        allow all;
+        default_type "text/plain";
+        root /tmp/letsencrypt-auto;
+    }
+
+    location /static {
+        expires 7d;
+        proxy_cache STATIC;
+        proxy_cache_valid 200 7d;
+        add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        alias /var/www/app/static;
+    }
+
+    # https://github.com/docker/compose/issues/3412
+    resolver 127.0.0.11 valid=300s;
+    resolver_timeout 10s;
+
+    location /backend {
+        return 302 /backend/;
+    }
+
+    # https://serverfault.com/questions/562756/how-to-remove-the-path-with-an-nginx-proxy-pass/562850#562850
+    location ~ ^/backend/?((?<=/).*)?$ {
+        set $backend backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://$backend/$1$is_args$args;
+        proxy_redirect http://$backend/ /backend/;
+    }
+
+
+}
